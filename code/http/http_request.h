@@ -32,10 +32,10 @@ public:
         CLOSED_CONNECTION,
     };
 
-    HttpRequest() { init(); }
+    HttpRequest() { Init(); }
     ~HttpRequest() = default;
 
-    void init();              // 初始化
+    void Init();              // 初始化
     bool parse(Buffer &buff); // 解析数据并更新状态机
 
     std::string path() const;

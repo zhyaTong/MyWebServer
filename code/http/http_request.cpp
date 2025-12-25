@@ -57,7 +57,7 @@ std::string HttpRequest::GetPost(const char *key) const
     return "";
 }
 
-void HttpRequest::init()
+void HttpRequest::Init()
 {
     method_ = path_ = version_ = body_ = "";
     state_ = REQUEST_LINE;
