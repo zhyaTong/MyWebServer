@@ -19,12 +19,26 @@ add_library(http
 )
 target_link_libraries(http PUBLIC buffer)   #显式依赖
 
+# 线程池模块
+add_library(threadpool INTERFACE)
+target_include_directories(threadpool
+    INTERFACE ${PROJECT_SOURCE_DIR}/code/pool
+)
+
+# 定时器模块
+add_library(timer
+    code/timer/heap_timer.cpp
+)
+
 # server 模块
 add_library(server
     code/server/WebServer.cpp
     code/server/epoll.cpp
 )
-target_link_libraries(server PUBLIC http)
+target_link_libraries(server 
+    PUBLIC http 
+    PUBLIC timer
+    PUBLIC threadpool)
 
 # 可执行文件
 add_executable(myWebServer

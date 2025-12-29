@@ -1,8 +1,8 @@
 #include "WebServer.h"
 
-WebServer::WebServer(int port, int trigMode, int timeoutMs, bool OptLinger)
+WebServer::WebServer(int port, int trigMode, int timeoutMs, bool OptLinger, size_t threadNum)
     : port_(port), openLinger_(OptLinger), timeoutMs_(timeoutMs), isClose_(false),
-      epoll_(new Epoll())
+      epoll_(new Epoll()), threadpool_(new ThreadPool(threadNum)), timer_(new HeapTimer())
 {
     srcDir_ = getcwd(nullptr, 256);
     assert(srcDir_);
@@ -55,6 +55,10 @@ void WebServer::Start()
     int timeMs = -1; // epoll_wait无事件将阻塞
     while (!isClose_)
     {
+        //获取下一个定时器过期的时间
+        if(timeoutMs_>0){
+            timeMs=timer_->GetNextTick();
+        }
         int eventCnt = epoll_->Wait(timeMs);
         for (int i = 0; i < eventCnt; i++)
         {
@@ -94,6 +98,14 @@ void WebServer::SendError_(int fd, const char *info)
     close(fd);
 }
 
+void WebServer::ExentTime_(HttpConn *client){
+    assert(client);
+    if(timeoutMs_>0){
+        //有新事件时更新定时器
+        timer_->adjust(client->GetFd(),timeoutMs_);
+    }
+}
+
 void WebServer::CloseConn_(HttpConn *client)
 {
     assert(client);
@@ -105,6 +117,10 @@ void WebServer::AddClient_(int fd, sockaddr_in addr)
 {
     assert(fd > 0);
     users_[fd].Init(fd, addr);
+    //将新连接添加到定时器中
+    if(timeoutMs_>0){
+        timer_->add(fd,timeoutMs_,[this,capture0=&users_[fd]]{CloseConn_(capture0);});
+    }
     epoll_->AddFd(fd, EPOLLIN | connEvent_);
     SetFdNonblock(fd);
 }
@@ -132,13 +148,15 @@ void WebServer::DealListen_()
 void WebServer::DealRead_(HttpConn *client)
 {
     assert(client);
-    onRead_(client);
+    ExentTime_(client);
+    threadpool_->AddTask([this,client]{onRead_(client);});
 }
 
 void WebServer::DealWrite_(HttpConn *client)
 {
     assert(client);
-    onWrite_(client);
+    ExentTime_(client);
+    threadpool_->AddTask([this,client]{onWrite_(client);});
 }
 
 void WebServer::onRead_(HttpConn *client)
@@ -147,7 +165,7 @@ void WebServer::onRead_(HttpConn *client)
     int ret = -1;
     int readErrno = 0;
     ret = client->read(&readErrno);
-    if (ret <= 0 && readErrno != EAGAIN)    //出现错误        ret==0 对端关闭 
+    if (ret <= 0 && readErrno != EAGAIN) // 出现错误        ret==0 对端关闭
     {
         CloseConn_(client);
         return;
@@ -174,8 +192,8 @@ void WebServer::onWrite_(HttpConn *client)
     int writeErrno = 0;
     ret = client->write(&writeErrno);
     if (client->ToWriteBytes() == 0)
-    {//传输完成
-        if (client->IsKeepAlive())//是否保持连接
+    {                              // 传输完成
+        if (client->IsKeepAlive()) // 是否保持连接
         {
             onProcess_(client);
             return;
@@ -183,8 +201,8 @@ void WebServer::onWrite_(HttpConn *client)
     }
     else if (ret < 0)
     {
-        if (writeErrno == EAGAIN)   //写缓冲区满
-        {//等下次可写，继续传输
+        if (writeErrno == EAGAIN) // 写缓冲区满
+        {                         // 等下次可写，继续传输
             epoll_->ModFd(client->GetFd(), connEvent_ | EPOLLOUT);
             return;
         }

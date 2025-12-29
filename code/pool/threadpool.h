@@ -11,7 +11,7 @@
 
 class ThreadPool
 {
-private:
+public:
     explicit ThreadPool(size_t threadCount) : pool_(std::make_shared<Pool>())
     {
         assert(threadCount>0);
