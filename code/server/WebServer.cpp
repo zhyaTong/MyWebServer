@@ -6,7 +6,7 @@ WebServer::WebServer(int port, int trigMode, int timeoutMs, bool OptLinger)
 {
     srcDir_ = getcwd(nullptr, 256);
     assert(srcDir_);
-    strncat(srcDir_, "/resources/", 16);
+    strncat(srcDir_, "/../../resources/", 16);
     HttpConn::userCount = 0;
     HttpConn::srcDir = srcDir_;
 
