@@ -6,7 +6,7 @@ WebServer::WebServer(int port, int trigMode, int timeoutMs, bool OptLinger, size
 {
     srcDir_ = getcwd(nullptr, 256);
     assert(srcDir_);
-    strncat(srcDir_, "/../../resources/", 16);
+    strncat(srcDir_, "/../../resources/", 20);
     HttpConn::userCount = 0;
     HttpConn::srcDir = srcDir_;
 
@@ -27,7 +27,7 @@ WebServer::~WebServer()
 void WebServer::InitEventMode_(int trigMode)
 {
     listenEvent_ = EPOLLRDHUP;
-    connEvent_ - EPOLLONESHOT | EPOLLRDHUP;
+    connEvent_ = EPOLLONESHOT | EPOLLRDHUP;
     switch (trigMode)
     {
     case 0:
@@ -242,7 +242,7 @@ bool WebServer::InitSocket_()
     }
 
     int optval = 1; // 端口复用
-    ret = setsockopt(listenFd_, SOL_SOCKET, SO_REUSEADDR, (const void *)&optval, sizeof(optval));
+    ret = setsockopt(listenFd_, SOL_SOCKET, SO_REUSEADDR, (const void *)&optval, sizeof(int));
     if (ret == -1)
     {
         close(listenFd_);

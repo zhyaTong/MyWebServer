@@ -69,7 +69,7 @@ void HeapTimer::adjust(int id, int timeout)
 
 void HeapTimer::add(int id, int timeout, const TimeoutCallBack &cb)
 {
-    assert(id > 0);
+    assert(id >= 0);
     size_t i;
     if (ref_.count(id) == 0)
     {

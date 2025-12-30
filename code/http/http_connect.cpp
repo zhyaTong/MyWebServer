@@ -51,6 +51,14 @@ int HttpConn::GetFd() const
     return fd_;
 }
 
+struct sockaddr_in HttpConn::GetAddr() const {
+    return addr_;
+}
+
+const char* HttpConn::GetIp() const {
+    return inet_ntoa(addr_.sin_addr);
+}
+
 int HttpConn::GetPort() const
 {
     return addr_.sin_port;
