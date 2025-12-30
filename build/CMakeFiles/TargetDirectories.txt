@@ -1,7 +1,0 @@
-/home/tzy/WebServer/build/CMakeFiles/buffer.dir
-/home/tzy/WebServer/build/CMakeFiles/http.dir
-/home/tzy/WebServer/build/CMakeFiles/timer.dir
-/home/tzy/WebServer/build/CMakeFiles/server.dir
-/home/tzy/WebServer/build/CMakeFiles/myWebServer.dir
-/home/tzy/WebServer/build/CMakeFiles/edit_cache.dir
-/home/tzy/WebServer/build/CMakeFiles/rebuild_cache.dir

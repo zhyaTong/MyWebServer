@@ -1,2 +1,0 @@
-/usr/bin/ar qc libtimer.a CMakeFiles/timer.dir/code/timer/heap_timer.cpp.o
-/usr/bin/ranlib libtimer.a
