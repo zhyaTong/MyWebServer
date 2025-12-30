@@ -11,11 +11,13 @@
 
 #include "epoll.h"
 #include "../http/http_connect.h"
+#include "../pool/threadpool.h"
+#include "../timer/heap_timer.h"
 
 class WebServer
 {
 public:
-    WebServer(int port, int trigMode, int timeoutMs, bool OptLinger);
+    WebServer(int port, int trigMode, int timeoutMs, bool OptLinger, size_t threadNum);
     ~WebServer();
     void Start();
 
@@ -52,6 +54,8 @@ private:
 
     std::unordered_map<int, HttpConn> users_;
     std::unique_ptr<Epoll> epoll_;
+    std::unique_ptr<ThreadPool> threadpool_; // 添加线程池
+    std::unique_ptr<HeapTimer> timer_;       // 添加定时器
 };
 
 #endif

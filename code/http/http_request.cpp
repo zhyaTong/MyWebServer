@@ -67,9 +67,13 @@ void HttpRequest::Init()
 
 bool HttpRequest::IsKeepAlive() const
 {
-    if (header_.count("Connection") == 1)
-    {
-        return header_.find("Connection")->second == "keep-alive" && version_ == "1.1";
+    if (version_ == "1.1") {
+        auto it = header_.find("Connection");
+        return it == header_.end() || it->second != "close";
+    }
+    if (version_ == "1.0") {
+        auto it = header_.find("Connection");
+        return it != header_.end() && it->second == "keep-alive";
     }
     return false;
 }

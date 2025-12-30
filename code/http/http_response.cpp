@@ -117,16 +117,13 @@ void HttpResponse::AddStateLine_(Buffer &buff)
 
 void HttpResponse::AddHeader_(Buffer &buff)
 {
-    buff.Append("Connection: ");
-    if (isKeepAlive_)
-    {
-        buff.Append("keep-alive\r\n");
-        buff.Append("keep-alive: max=6, timeout=120\r\n");
+    if (isKeepAlive_) {
+        buff.Append("Connection: keep-alive\r\n");
+        buff.Append("Keep-Alive: timeout=120, max=6\r\n");
+    } else {
+        buff.Append("Connection: close\r\n");
     }
-    else
-    {
-        buff.Append("close\r\n");
-    }
+
     buff.Append("Content-type: " + GetFileType_() + "\r\n");
 }
 
