@@ -1,0 +1,2 @@
+/usr/bin/ar qc libserver.a CMakeFiles/server.dir/code/server/WebServer.cpp.o CMakeFiles/server.dir/code/server/epoll.cpp.o
+/usr/bin/ranlib libserver.a
