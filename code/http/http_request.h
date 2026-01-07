@@ -7,7 +7,9 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <string>
+#include <mysql/mysql.h>
 #include "../buffer/buffer.h"
+#include "../pool/sql_connect_RAII.h"
 
 class HttpRequest
 {
@@ -56,6 +58,8 @@ private:
     void ParsePost_(); // 判断是否是 POST 请求，并调用表单解析
     void ParseFromUrlencoded_();
 
+    static bool UserVerify(const std::string &name, const std::string &pwd, bool isLogin);
+
     PARSE_STATE state_;
     std::string method_, path_, version_, body_;
     std::unordered_map<std::string, std::string> header_; // 所有 HTTP 头字段
@@ -63,7 +67,7 @@ private:
 
     static const std::unordered_set<std::string> DEFAULT_HTML;          // 页面集合
     static const std::unordered_map<std::string, int> DEFAULT_HTML_TAG; // 页面类型标记
-    static int ConverHex(char c);                                      // 十六进制字符转数字
+    static int ConverHex(char c);                                       // 十六进制字符转数字
 };
 
 #endif

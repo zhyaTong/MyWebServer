@@ -1,6 +1,7 @@
 #include "WebServer.h"
 
-WebServer::WebServer(int port, int trigMode, int timeoutMs, bool OptLinger, size_t threadNum)
+WebServer::WebServer(int port, int trigMode, int timeoutMs, bool OptLinger, size_t threadNum,
+                     int sqlPort, const char *sqlUser, const char *sqlPwd, const char *dbName, int connPoolNum)
     : port_(port), openLinger_(OptLinger), timeoutMs_(timeoutMs), isClose_(false),
       epoll_(new Epoll()), threadpool_(new ThreadPool(threadNum)), timer_(new HeapTimer())
 {
@@ -9,6 +10,7 @@ WebServer::WebServer(int port, int trigMode, int timeoutMs, bool OptLinger, size
     strncat(srcDir_, "/../../resources/", 20);
     HttpConn::userCount = 0;
     HttpConn::srcDir = srcDir_;
+    SqlConnPool::Instance()->Init("localhost", sqlPort, sqlUser, sqlPwd, dbName, connPoolNum);
 
     InitEventMode_(trigMode);
     if (!InitSocket_())
@@ -22,6 +24,7 @@ WebServer::~WebServer()
     close(listenFd_);
     isClose_ = true;
     free(srcDir_);
+    SqlConnPool::Instance()->ClosePool();
 }
 
 void WebServer::InitEventMode_(int trigMode)
@@ -55,9 +58,10 @@ void WebServer::Start()
     int timeMs = -1; // epoll_wait无事件将阻塞
     while (!isClose_)
     {
-        //获取下一个定时器过期的时间
-        if(timeoutMs_>0){
-            timeMs=timer_->GetNextTick();
+        // 获取下一个定时器过期的时间
+        if (timeoutMs_ > 0)
+        {
+            timeMs = timer_->GetNextTick();
         }
         int eventCnt = epoll_->Wait(timeMs);
         for (int i = 0; i < eventCnt; i++)
@@ -98,11 +102,13 @@ void WebServer::SendError_(int fd, const char *info)
     close(fd);
 }
 
-void WebServer::ExentTime_(HttpConn *client){
+void WebServer::ExentTime_(HttpConn *client)
+{
     assert(client);
-    if(timeoutMs_>0){
-        //有新事件时更新定时器
-        timer_->adjust(client->GetFd(),timeoutMs_);
+    if (timeoutMs_ > 0)
+    {
+        // 有新事件时更新定时器
+        timer_->adjust(client->GetFd(), timeoutMs_);
     }
 }
 
@@ -117,9 +123,11 @@ void WebServer::AddClient_(int fd, sockaddr_in addr)
 {
     assert(fd > 0);
     users_[fd].Init(fd, addr);
-    //将新连接添加到定时器中
-    if(timeoutMs_>0){
-        timer_->add(fd,timeoutMs_,[this,capture0=&users_[fd]]{CloseConn_(capture0);});
+    // 将新连接添加到定时器中
+    if (timeoutMs_ > 0)
+    {
+        timer_->add(fd, timeoutMs_, [this, capture0 = &users_[fd]]
+                    { CloseConn_(capture0); });
     }
     epoll_->AddFd(fd, EPOLLIN | connEvent_);
     SetFdNonblock(fd);
@@ -149,14 +157,16 @@ void WebServer::DealRead_(HttpConn *client)
 {
     assert(client);
     ExentTime_(client);
-    threadpool_->AddTask([this,client]{onRead_(client);});
+    threadpool_->AddTask([this, client]
+                         { onRead_(client); });
 }
 
 void WebServer::DealWrite_(HttpConn *client)
 {
     assert(client);
     ExentTime_(client);
-    threadpool_->AddTask([this,client]{onWrite_(client);});
+    threadpool_->AddTask([this, client]
+                         { onWrite_(client); });
 }
 
 void WebServer::onRead_(HttpConn *client)
