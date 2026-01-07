@@ -67,11 +67,13 @@ void HttpRequest::Init()
 
 bool HttpRequest::IsKeepAlive() const
 {
-    if (version_ == "1.1") {
+    if (version_ == "1.1")
+    {
         auto it = header_.find("Connection");
         return it == header_.end() || it->second != "close";
     }
-    if (version_ == "1.0") {
+    if (version_ == "1.0")
+    {
         auto it = header_.find("Connection");
         return it != header_.end() && it->second == "keep-alive";
     }
@@ -178,7 +180,7 @@ void HttpRequest::ParseBody_(const std::string &line)
     state_ = FINISH;
 }
 
-//16转10
+// 16转10
 int HttpRequest::ConverHex(char c)
 {
     if (c >= 'A' && c <= 'F')
@@ -188,7 +190,7 @@ int HttpRequest::ConverHex(char c)
     return c;
 }
 
-//登陆 注册
+// 登陆 注册
 void HttpRequest::ParsePost_()
 {
     if (method_ == "POST" && header_["Content-Type"] == "application/x-www-form-urlencoded")
@@ -200,12 +202,20 @@ void HttpRequest::ParsePost_()
             if (tag == 0 || tag == 1)
             {
                 bool isLogin = (tag == 1);
+                if (UserVerify(post_["username"], post_["password"], isLogin))
+                {
+                    path_ = "/welcome.html";
+                }
+                else
+                {
+                    path_ = "/error.html";
+                }
             }
         }
     }
 }
 
-//解析请求体的内容放入post_
+// 解析请求体的内容放入post_
 void HttpRequest::ParseFromUrlencoded_()
 {
     if (body_.size() == 0)
@@ -250,4 +260,66 @@ void HttpRequest::ParseFromUrlencoded_()
         value = body_.substr(j, i - j);
         post_[key] = value;
     }
+}
+
+bool HttpRequest::UserVerify(const std::string &name,
+                             const std::string &pwd,
+                             bool isLogin)
+{
+    if (name.empty() || pwd.empty())
+    {
+        return false;
+    }
+
+    MYSQL *sql = nullptr;
+    SqlConnRAII connRAII(&sql, SqlConnPool::Instance());
+    assert(sql);
+
+    // 防 SQL 注入
+    char escName[128] = {0};
+    char escPwd[128] = {0};
+    mysql_real_escape_string(sql, escName, name.c_str(), name.length());
+    mysql_real_escape_string(sql, escPwd, pwd.c_str(), pwd.length());
+
+    char query[256] = {0};
+    snprintf(query, sizeof(query),
+             "SELECT password FROM user WHERE username='%s' LIMIT 1",
+             escName);
+
+    if (mysql_query(sql, query))
+    {
+        return false;
+    }
+
+    MYSQL_RES *res = mysql_store_result(sql);
+    if (!res)
+    {
+        return false;
+    }
+
+    MYSQL_ROW row = mysql_fetch_row(res);
+    bool userExists = (row != nullptr);
+
+    // 登录逻辑
+    if (isLogin)
+    {
+        bool ok = userExists && (pwd == row[0]);
+        mysql_free_result(res);
+        return ok;
+    }
+
+    // 注册逻辑
+    if (userExists)
+    {
+        mysql_free_result(res);
+        return false; // 用户已存在
+    }
+
+    mysql_free_result(res);
+
+    snprintf(query, sizeof(query),
+             "INSERT INTO user(username,password) VALUES('%s','%s')",
+             escName, escPwd);
+
+    return mysql_query(sql, query) == 0;
 }
