@@ -122,6 +122,7 @@ bool HttpRequest::parse(Buffer &buff)
         }
         buff.RetrieveUntil(lineEnd + 2);
     }
+    LOG_DEBUG("[%s], [%s], [%s]", method_.c_str(), path_.c_str(), version_.c_str());
     return true;
 }
 
@@ -156,6 +157,7 @@ bool HttpRequest::ParseRequestLine_(const std::string &line)
         state_ = HEADERS;
         return true;
     }
+    LOG_ERROR("RequestLine Error");
     return false;
 }
 
@@ -178,6 +180,7 @@ void HttpRequest::ParseBody_(const std::string &line)
     body_ = line;
     ParsePost_();
     state_ = FINISH;
+    LOG_DEBUG("Body:%s, len:%d", line.c_str(), line.size());
 }
 
 // 16转10
@@ -199,6 +202,7 @@ void HttpRequest::ParsePost_()
         if (DEFAULT_HTML_TAG.count(path_))
         {
             int tag = DEFAULT_HTML_TAG.find(path_)->second;
+            LOG_DEBUG("Tag:%d", tag);
             if (tag == 0 || tag == 1)
             {
                 bool isLogin = (tag == 1);
@@ -247,7 +251,7 @@ void HttpRequest::ParseFromUrlencoded_()
             value = body_.substr(j, i - j);
             j = i + 1;
             post_[key] = value;
-            // LOG_DEBUG("%s = %s", key.c_str(), value.c_str());
+            LOG_DEBUG("%s = %s", key.c_str(), value.c_str());
             break;
         default:
             break;
@@ -270,6 +274,7 @@ bool HttpRequest::UserVerify(const std::string &name,
     {
         return false;
     }
+    LOG_INFO("Verify name:%s pwd:%s", name.c_str(), pwd.c_str());
 
     MYSQL *sql = nullptr;
     SqlConnRAII connRAII(&sql, SqlConnPool::Instance());
@@ -285,6 +290,7 @@ bool HttpRequest::UserVerify(const std::string &name,
     snprintf(query, sizeof(query),
              "SELECT password FROM user WHERE username='%s' LIMIT 1",
              escName);
+    LOG_DEBUG("%s", query);
 
     if (mysql_query(sql, query))
     {
@@ -298,12 +304,17 @@ bool HttpRequest::UserVerify(const std::string &name,
     }
 
     MYSQL_ROW row = mysql_fetch_row(res);
+    LOG_DEBUG("MYSQL ROW: %s %s", row[0]);
     bool userExists = (row != nullptr);
 
     // 登录逻辑
     if (isLogin)
     {
         bool ok = userExists && (pwd == row[0]);
+        if (!ok)
+        {
+            LOG_DEBUG("user not exist or pwd error!");
+        }
         mysql_free_result(res);
         return ok;
     }
@@ -312,6 +323,7 @@ bool HttpRequest::UserVerify(const std::string &name,
     if (userExists)
     {
         mysql_free_result(res);
+        LOG_DEBUG("user used!");
         return false; // 用户已存在
     }
 
@@ -320,6 +332,11 @@ bool HttpRequest::UserVerify(const std::string &name,
     snprintf(query, sizeof(query),
              "INSERT INTO user(username,password) VALUES('%s','%s')",
              escName, escPwd);
-
-    return mysql_query(sql, query) == 0;
+    if (mysql_query(sql, query))
+    {
+        LOG_DEBUG("Insert error!");
+        return false;
+    }
+    LOG_DEBUG("UserVerify success!!");
+    return true;
 }

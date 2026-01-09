@@ -8,6 +8,7 @@
 #include <thread>
 #include <cassert>
 #include <iostream>
+#include "../log/log.h"
 
 class SqlConnPool
 {

@@ -1,7 +1,8 @@
 #include "WebServer.h"
 
 WebServer::WebServer(int port, int trigMode, int timeoutMs, bool OptLinger, size_t threadNum,
-                     int sqlPort, const char *sqlUser, const char *sqlPwd, const char *dbName, int connPoolNum)
+                     int sqlPort, const char *sqlUser, const char *sqlPwd, const char *dbName,
+                     int connPoolNum, bool openLog, int logLevel, int logDeqSize)
     : port_(port), openLinger_(OptLinger), timeoutMs_(timeoutMs), isClose_(false),
       epoll_(new Epoll()), threadpool_(new ThreadPool(threadNum)), timer_(new HeapTimer())
 {
@@ -16,6 +17,26 @@ WebServer::WebServer(int port, int trigMode, int timeoutMs, bool OptLinger, size
     if (!InitSocket_())
     {
         isClose_ = true;
+    }
+
+    if (openLog)
+    {
+        Log::Instance()->init(logLevel, "../../log", ".log", logDeqSize);
+        if (isClose_)
+        {
+            LOG_ERROR("========== Server init error!==========");
+        }
+        else
+        {
+            LOG_INFO("========== Server init ==========");
+            LOG_INFO("Port:%d, OpenLinger: %s", port_, OptLinger ? "true" : "false");
+            LOG_INFO("Listen Mode: %s, OpenConn Mode: %s",
+                     (listenEvent_ & EPOLLET ? "ET" : "LT"),
+                     (connEvent_ & EPOLLET ? "ET" : "LT"));
+            LOG_INFO("LogSys level: %d", logLevel);
+            LOG_INFO("srcDir: %s", HttpConn::srcDir);
+            LOG_INFO("SqlConnPool num: %d, ThreadPool num: %d", connPoolNum, threadNum);
+        }
     }
 }
 
@@ -56,6 +77,10 @@ void WebServer::InitEventMode_(int trigMode)
 void WebServer::Start()
 {
     int timeMs = -1; // epoll_wait无事件将阻塞
+    if (!isClose_)
+    {
+        LOG_INFO("========== Server start ==========");
+    }
     while (!isClose_)
     {
         // 获取下一个定时器过期的时间
@@ -89,7 +114,7 @@ void WebServer::Start()
             }
             else
             {
-                std::cout << "Unexpected event" << std::endl;
+                LOG_ERROR("Unexpected event");
             }
         }
     }
@@ -99,6 +124,10 @@ void WebServer::SendError_(int fd, const char *info)
 {
     assert(fd > 0);
     int ret = send(fd, info, strlen(info), 0);
+    if (ret < 0)
+    {
+        LOG_WARN("send error to client[%d] error!", fd);
+    }
     close(fd);
 }
 
@@ -115,6 +144,7 @@ void WebServer::ExentTime_(HttpConn *client)
 void WebServer::CloseConn_(HttpConn *client)
 {
     assert(client);
+    LOG_INFO("Client[%d] quit!", client->GetFd());
     epoll_->DelFd(client->GetFd());
     client->Close();
 }
@@ -131,6 +161,7 @@ void WebServer::AddClient_(int fd, sockaddr_in addr)
     }
     epoll_->AddFd(fd, EPOLLIN | connEvent_);
     SetFdNonblock(fd);
+    LOG_INFO("Client[%d] in!", users_[fd].GetFd());
 }
 
 void WebServer::DealListen_()
@@ -147,6 +178,7 @@ void WebServer::DealListen_()
         else if (HttpConn::userCount >= MAX_FD)
         {
             SendError_(fd, "Server busy!");
+            LOG_WARN("Clients is full!");
             return;
         }
         AddClient_(fd, addr);
@@ -226,6 +258,7 @@ bool WebServer::InitSocket_()
     struct sockaddr_in addr{};
     if (port_ > 65535 || port_ < 1024)
     {
+        LOG_ERROR("Port:%d error!", port_);
         return false;
     }
 
@@ -242,11 +275,15 @@ bool WebServer::InitSocket_()
 
     listenFd_ = socket(AF_INET, SOCK_STREAM, 0);
     if (listenFd_ < 0)
+    {
+        LOG_ERROR("Create socket error!", port_);
         return false;
+    }
 
     ret = setsockopt(listenFd_, SOL_SOCKET, SO_LINGER, &optLinger, sizeof(optLinger));
     if (ret < 0)
     {
+        LOG_ERROR("Init linger error!", port_);
         close(listenFd_);
         return false;
     }
@@ -255,6 +292,7 @@ bool WebServer::InitSocket_()
     ret = setsockopt(listenFd_, SOL_SOCKET, SO_REUSEADDR, (const void *)&optval, sizeof(int));
     if (ret == -1)
     {
+        LOG_ERROR("set socket setsockopt error !");
         close(listenFd_);
         return false;
     }
@@ -262,6 +300,7 @@ bool WebServer::InitSocket_()
     ret = bind(listenFd_, (struct sockaddr *)&addr, sizeof(addr));
     if (ret < 0)
     {
+        LOG_ERROR("Bind Port:%d error!", port_);
         close(listenFd_);
         return false;
     }
@@ -269,16 +308,19 @@ bool WebServer::InitSocket_()
     ret = listen(listenFd_, 6);
     if (ret < 0)
     {
+        LOG_ERROR("Listen port:%d error!", port_);
         close(listenFd_);
         return false;
     }
     ret = epoll_->AddFd(listenFd_, listenEvent_ | EPOLLIN);
     if (ret == 0)
     {
+        LOG_ERROR("Add listen error!");
         close(listenFd_);
         return false;
     }
     SetFdNonblock(listenFd_);
+    LOG_INFO("Server port:%d", port_);
     return true;
 }
 

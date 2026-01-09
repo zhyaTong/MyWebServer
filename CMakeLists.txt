@@ -22,6 +22,24 @@ add_library(buffer
 target_include_directories(buffer
     PUBLIC ${PROJECT_SOURCE_DIR}/code/buffer
 )
+# ================= log =================
+add_library(blockDeque INTERFACE)
+
+target_include_directories(blockDeque
+    INTERFACE ${PROJECT_SOURCE_DIR}/code/log
+)
+
+add_library(log
+    code/log/log.cpp
+)
+target_include_directories(log
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}/code/log
+)
+target_link_libraries(log
+    PUBLIC buffer
+    PUBLIC blockDeque
+)
 
 # ================= sqlPool（含 RAII） =================
 add_library(sqlPool
@@ -32,6 +50,9 @@ target_include_directories(sqlPool
     PUBLIC
         ${PROJECT_SOURCE_DIR}/code/pool
         ${MYSQL_INCLUDE_DIR}
+)
+target_link_libraries(sqlPool
+    PUBLIC log
 )
 
 target_link_libraries(sqlPool
@@ -52,6 +73,7 @@ target_include_directories(http
 target_link_libraries(http
     PUBLIC buffer
     PUBLIC sqlPool
+    PUBLIC log
 )
 
 # ================= threadpool（接口库） =================
@@ -84,6 +106,7 @@ target_link_libraries(server
     PUBLIC http
     PUBLIC timer
     PUBLIC threadpool
+    PUBLIC log
 )
 
 # ================= 可执行文件 =================
