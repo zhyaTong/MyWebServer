@@ -1,3 +1,8 @@
 build/
 .vscode/
+<<<<<<< HEAD
 *.log
+=======
+build/
+*.log
+>>>>>>> feature
