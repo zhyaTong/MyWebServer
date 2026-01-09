@@ -3,6 +3,7 @@
 
 #include "http_request.h"
 #include "http_response.h"
+#include "../log/log.h"
 #include <arpa/inet.h>
 
 class HttpConn

@@ -10,6 +10,7 @@
 #include <mysql/mysql.h>
 #include "../buffer/buffer.h"
 #include "../pool/sql_connect_RAII.h"
+#include "../log/log.h"
 
 class HttpRequest
 {

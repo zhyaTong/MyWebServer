@@ -136,6 +136,7 @@ void HttpResponse::AddContent_(Buffer &buff)
         return;
     }
 
+    LOG_DEBUG("file path %s", (srcDir_ + path_).data());
     int *mmRet = (int *)mmap(nullptr, mmFileStat_.st_size, PROT_READ, MAP_PRIVATE, srcFd, 0);
     if (*mmRet == -1)
     {

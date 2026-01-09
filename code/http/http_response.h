@@ -4,6 +4,7 @@
 #include "../buffer/buffer.h"
 #include <sys/stat.h> //stat
 #include <unordered_map>
+#include "../log/log.h"
 
 class HttpResponse
 {

@@ -22,13 +22,13 @@ void SqlConnPool::Init(const char *host, int port,
         sql = mysql_init(sql);
         if (!sql)
         {
-            std::cout << "mysql init error!" << std::endl;
+            LOG_ERROR("mysql init error!");
             assert(sql);
         }
         sql = mysql_real_connect(sql, host, user, pwd, dbName, port, nullptr, 0);
         if (!sql)
         {
-            std::cout << "mysql connect error!" << std::endl;
+            LOG_ERROR("mysql connect error!");
         }
         connQue_.push(sql);
     }
@@ -41,7 +41,7 @@ MYSQL *SqlConnPool::GetConn()
     MYSQL *sql = nullptr;
     if (connQue_.empty())
     {
-        std::cout << "SqlConnPool is empty!" << std::endl;
+        LOG_ERROR("SqlConnPool is busy!");
         return nullptr;
     }
     sem_wait(&semId); // 等待信号量

@@ -33,6 +33,7 @@ void HttpConn::Init(int sockFd, const sockaddr_in &addr)
     writeBuff_.RetrieveAll();
     readBuff_.RetrieveAll();
     isClose_ = false;
+    LOG_INFO("Client[%d](%s:%d) in, userCount:%d", fd_, GetIp(), GetPort(), (int)userCount);
 }
 
 void HttpConn::Close()
@@ -43,6 +44,7 @@ void HttpConn::Close()
         isClose_ = true;
         userCount--;
         close(fd_);
+        LOG_INFO("Client[%d](%s:%d) quit, UserCount:%d", fd_, GetIp(), GetPort(), (int)userCount);
     }
 }
 
@@ -51,11 +53,13 @@ int HttpConn::GetFd() const
     return fd_;
 }
 
-struct sockaddr_in HttpConn::GetAddr() const {
+struct sockaddr_in HttpConn::GetAddr() const
+{
     return addr_;
 }
 
-const char* HttpConn::GetIp() const {
+const char *HttpConn::GetIp() const
+{
     return inet_ntoa(addr_.sin_addr);
 }
 
@@ -78,7 +82,7 @@ ssize_t HttpConn::read(int *saveErrno)
     return len;
 }
 
-//集中写
+// 集中写
 ssize_t HttpConn::write(int *saveErrno)
 {
     ssize_t len = -1;
@@ -124,6 +128,7 @@ bool HttpConn::process()
     else if (request_.parse(readBuff_))
     {
         response_.Init(srcDir, request_.path(), request_.IsKeepAlive(), 200);
+        LOG_DEBUG("%s", request_.path().c_str());
     }
     else
     {
@@ -141,5 +146,6 @@ bool HttpConn::process()
         iov_[1].iov_len = response_.FileLen();
         iovCnt_ = 2;
     }
+    LOG_DEBUG("filesize:%d, %d  to %d", response_.FileLen(), iovCnt_, ToWriteBytes());
     return true;
 }
